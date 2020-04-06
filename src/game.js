@@ -5,8 +5,7 @@ import Factory from "./chess/factory";
 import PlayerType from "./type";
 import Player from "./player";
 import io from 'socket.io-client';
-
-const socket = io.connect('localhost:3000');
+import {executeStep} from './game-utils'
 const defaultChesses = [
 	[1, 7, 4, 9],
 	[1, 6, 3, 9],
@@ -42,10 +41,10 @@ const defaultChesses = [
 	[-1, 1, 6, 3],
 	[-1, 1, 8, 3]
 ];
-
-
-export default class Game {
+export let socket = io()
+export class Game {
 	constructor() {
+		this.socket = socket;
 		this.initialSituation = defaultChesses;
 
 		this.state = GameState.UNINITIALIZED;
@@ -71,13 +70,47 @@ export default class Game {
 		this.moveablePlaces = [];
 
 		this.loggers = [];
-
-        this.init();
-		socket.on('message', res=> {
-			console.info("===========")
-			console.info(res)
-			console.info("===========")
+		this.socket.on('message', res => {
+			if (JSON.stringify(res) === "{}") return;
+			executeStep(res)
 		});
+		this.socket.on('init', res => {
+			if (JSON.stringify(res) === "[]") return;
+			res.forEach(item=>{
+				executeStep(item)
+			})
+		});
+		this.socket.on('reset', () => {
+			this.initialSituation = defaultChesses;
+
+			this.state = GameState.UNINITIALIZED;
+
+			this.history = [];
+
+			this.situation = [];
+
+			this.redPlayer = null;
+			this.blackPlayer = null;
+			this.currentPlayer = null;
+
+			this.watchers = [];
+
+			this.currentChess = null;
+			this.undoList = [];
+			this.redoList = [];
+			this.chessUnderAttack = [];
+
+			this.generals = [];
+
+			this.chesses = [];
+			this.moveablePlaces = [];
+
+			this.loggers = [];
+			this.init();
+			// ;
+		});
+        this.init();
+
 	}
 
 	init() {
@@ -107,7 +140,7 @@ export default class Game {
 
 	createChess(data) {
 		let chess = Factory.createChess(data);
-		chess.game = this;
+		// chess.game = this;
 		this.situation[chess.x][chess.y] = chess;
 
 		if (chess.type === ChessType.GENERAL) {
@@ -117,211 +150,21 @@ export default class Game {
 		return chess;
 	}
 
-	isFriendly(color, x, y) {
-		if (this.isEmpty(x, y)) {
-			return false;
-		}
-
-		return color + this.getChess(x, y).color != 0;
-	}
-
-	isEmpty(x, y) {
-		return !this.situation[x][y];
-	}
-
-	getChess(x, y) {
-		return this.situation[x][y];
-	}
-
-	checkFinish() {
-		if (this.state === GameState.FINISHED) {
-			this.prompt("棋局已终止！");
-			return true;
-		}
-		return false;
-	}
-
-	attack(position) {
-		if (this.checkFinish()) {
-			return;
-		}
-
-		let chess = this.situation[position.x][position.y];
-
-		if (this.currentChess) {
-			if (this.currentChess.color + chess.color === 0) {
-				let canKill = this.chessUnderAttack.filter(it => (it.x === chess.x) && (it.y === chess.y)).length;
-
-				if (canKill) {
-					return this.moveChess(this.currentChess, chess.x, chess.y, false);
-				}
-				else {
-					this.prompt("吃不到这个棋子！");
-					return;
-				}
-			}
-		}
-	}
-
-	select(chess) {
-		if (this.checkFinish()) {
-			return;
-		}
-
-		if (this.currentPlayer.type !== PlayerType.LOCAL) {
-			this.prompt("等待远程棋手落子！");
-			return;
-		}
-
-		if (chess.color !== this.currentPlayer.color) {
-			this.prompt("不该你走！");
-			return;
-		}
-
-		this.currentChess = chess;
-		this.moveablePlaces = [];
-		this.chessUnderAttack = [];
-		for (let i = 0; i < 9; i++) {
-			for (let j = 0; j < 10; j++) {
-				if (chess.canGo(i, j)) {
-					if (this.isEmpty(i, j)) {
-						this.moveablePlaces.push({
-							x: i,
-							y: j
-						});
-					}
-					else {
-						this.chessUnderAttack.push({
-							x: i,
-							y: j
-						});
-					}
-				}
-			}
-		}
-
-	}
-
-	moveTo(position) {
-		let step = this.moveChess(this.currentChess, position.x, position.y);
-		this.moveablePlaces = [];
-		this.chessUnderAttack = [];
-		return step;
-	}
-
-	moveChess(chess, newX, newY) {
-		let step = {
-			fromX: chess.x,
-			fromY: chess.y,
-			toX: newX,
-			toY: newY
-		};
-
-		this.executeStep(step);
-		// socket.emit("change_state", this.situation);
-		console.info(this);
-		console.info(step);
-		console.info(this.situation);
-
-		return step;
-	}
-
-	check() {
-		for (let i = 0; i < this.generals.length; i++) {
-			for (let j = 0; j < this.situation.length; j++) {
-				for (let k = 0; k < this.situation[j].length; k++) {
-					if (this.situation[j][k] && this.situation[j][k].canGo(this.generals[i].x, this.generals[i].y)) {
-						this.prompt("将军！");
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	prompt(text) {
-		alert(text);
-	}
-
 	addLogger(logger) {
 		this.loggers.push(logger);
 	}
 
-	log(step) {
-		let chess = this.situation[step.toX][step.toY];
-		this.loggers.forEach(logger => logger.log(chess, step));
-	}
+
 
 	addWatcher(watcher) {
 		this.watchers.push(watcher);
 	}
 
-	notify(step) {
-		this.watchers.forEach(watcher => watcher.notify(step));
-	}
 
 	processHistory(history) {
 		let newSteps = history.slice(this.history.length, history.length);
 		let game = this;
 		newSteps.forEach(step => this.executeStep(step));
-	}
-
-	executeStep(step, isUndo) {
-		let chess = this.situation[step.fromX][step.fromY];
-		let killedChess = this.situation[step.toX][step.toY];
-		delete this.situation[step.fromX][step.fromY];
-		this.situation[step.toX][step.toY] = chess;
-		chess.x = step.toX;
-		chess.y = step.toY;
-
-		if (killedChess) {
-			//this.chesses = this.chesses.filter(it => it == killedChess);
-
-			for (let i = 0; i < this.chesses.length; i++) {
-                    if (killedChess === this.chesses[i]) {
-                        this.chesses.splice(i, 1);
-                        break;
-                    }
-            }
-
-			if (killedChess.type === ChessType.GENERAL) {
-				let winner = (killedChess.color === Color.RED) ? "黑" : "红";
-				this.prompt("结束啦，" + winner + "方胜利！");
-				this.state = GameState.FINISHED;
-			}
-		}
-
-		if (isUndo) {
-			if (step.deadColor) {
-				let deadChess = ChessFactory.createChess([step.deadColor, step.deadType, step.fromX, step.fromY]);
-				this.situation[step.fromX][step.fromY] = deadChess;
-
-				this.chesses.push(deadChess);
-			}
-
-			this.redoList.push(step);
-		}
-		else {
-			if (killedChess) {
-				step.deadType = killedChess.type;
-				step.deadColor = killedChess.color;
-			}
-			this.undoList.push(step);
-		}
-
-		this.currentPlayer = (this.currentPlayer == this.redPlayer) ? this.blackPlayer : this.redPlayer;
-
-		this.currentChess = null;
-		this.moveablePlaces = [];
-		this.chessUnderAttack = [];
-
-		this.history.push(step);
-
-		this.check();
-
-		this.log(step);
-
-		this.notify(step);
 	}
 
 	undo() {
@@ -355,3 +198,4 @@ export default class Game {
 		return json;
 	}
 }
+export default new Game();

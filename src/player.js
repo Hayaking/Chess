@@ -1,20 +1,25 @@
+import {select,moveTo,attack} from "./game-utils";
+
 export default class Player {
 	constructor(user, color, type) {
-		this.game = null;
+		// this.game = null;
 		this.user = user;
 		this.color = color;
 		this.type = type;
 	}
 
-	select(chess) {
-		this.game.select(chess);
+	doSelect(chess) {
+		// this.game.select(chess);
+		select(chess);
 	}
 
-	move(position) {
-		this.game.moveTo(position);
+	doMove(position) {
+		// this.game.moveTo(position);
+		moveTo(position);
 	}
 
-	attack(position) {
-		this.game.attack(position);
+	doAttack(position) {
+		// this.game.attack(position);
+		attack(position);
 	}
 }

@@ -132,25 +132,25 @@
         <use v-bind:x="chessX(chess.x)"
              v-bind:y="chessY(chess.y)"
              v-for="chess in game.chesses"
-             v-on:click="game.currentPlayer.select(chess)"
+             v-on:click="game.currentPlayer.doSelect(chess)"
              xlink:href="{{symbol(chess)}}"/>
         <use v-bind:x="canGoX(position.x)"
              v-bind:y="canGoX(position.y)"
              v-for="position in game.moveablePlaces"
-             v-on:click="game.currentPlayer.move(position)"
+             v-on:click="game.currentPlayer.doMove(position)"
              xlink:href="#canGo"/>
 
         <use v-bind:x="canAttackX(position.x)"
              v-bind:y="canAttackY(position.y)"
              v-for="position in game.chessUnderAttack"
-             v-on:click="game.currentPlayer.attack(position)"
+             v-on:click="game.currentPlayer.doAttack(position)"
              xlink:href="#canAttack"/>
     </svg>
 </template>
 
 <script>
     import Setting from "./setting";
-    import Game from "./game";
+    import game from "./game";
     import ChessBoard from "./chessboard";
 
     const colors = {
@@ -160,7 +160,7 @@
     };
 
     const types = ["blank", "soldier", "cannon", "chariot", "horse", "staff", "guard", "general"];
-    const game = new Game();
+    // const game = new Game();
     const chessboard = new ChessBoard();
 
     export default {
