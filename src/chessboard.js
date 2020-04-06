@@ -64,7 +64,7 @@ export default class ChessBoard {
         let startX, startY, endX, endY;
 
         // 左边画一半
-        if (x != 0) {
+        if (x !== 0) {
             startX = x - distance;
             startY = y - distance - length;
             endX = x - distance - length;
@@ -81,7 +81,7 @@ export default class ChessBoard {
         }
 
         // 右边画一半
-        if (x != 8) {
+        if (x !== 8) {
             startX = x + distance;
             startY = y - distance - length;
             endX = x + distance + length;

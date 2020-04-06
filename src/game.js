@@ -4,7 +4,9 @@ import Color from "./chess/color";
 import Factory from "./chess/factory";
 import PlayerType from "./type";
 import Player from "./player";
+import io from 'socket.io-client';
 
+const socket = io.connect('localhost:3000');
 const defaultChesses = [
 	[1, 7, 4, 9],
 	[1, 6, 3, 9],
@@ -69,8 +71,13 @@ export default class Game {
 		this.moveablePlaces = [];
 
 		this.loggers = [];
-        
+
         this.init();
+		socket.on('message', res=> {
+			console.info("===========")
+			console.info(res)
+			console.info("===========")
+		});
 	}
 
 	init() {
@@ -81,7 +88,7 @@ export default class Game {
         let blackPlayer = new Player("Local Player 2", Color.BLACK, PlayerType.LOCAL);
         blackPlayer.game = this;
         this.blackPlayer = blackPlayer;
-            
+
 		for (let i = 0; i < 9; i++) {
 			this.situation[i] = [];
 		}
@@ -103,7 +110,7 @@ export default class Game {
 		chess.game = this;
 		this.situation[chess.x][chess.y] = chess;
 
-		if (chess.type == ChessType.GENERAL) {
+		if (chess.type === ChessType.GENERAL) {
 			this.generals.push(chess);
 		}
 
@@ -127,7 +134,7 @@ export default class Game {
 	}
 
 	checkFinish() {
-		if (this.state == GameState.FINISHED) {
+		if (this.state === GameState.FINISHED) {
 			this.prompt("棋局已终止！");
 			return true;
 		}
@@ -142,12 +149,11 @@ export default class Game {
 		let chess = this.situation[position.x][position.y];
 
 		if (this.currentChess) {
-			if (this.currentChess.color + chess.color == 0) {
-				let canKill = this.chessUnderAttack.filter(it => (it.x == chess.x) && (it.y == chess.y)).length;
+			if (this.currentChess.color + chess.color === 0) {
+				let canKill = this.chessUnderAttack.filter(it => (it.x === chess.x) && (it.y === chess.y)).length;
 
 				if (canKill) {
-					let step = this.moveChess(this.currentChess, chess.x, chess.y, false);
-					return step;
+					return this.moveChess(this.currentChess, chess.x, chess.y, false);
 				}
 				else {
 					this.prompt("吃不到这个棋子！");
@@ -162,12 +168,12 @@ export default class Game {
 			return;
 		}
 
-		if (this.currentPlayer.type != PlayerType.LOCAL) {
+		if (this.currentPlayer.type !== PlayerType.LOCAL) {
 			this.prompt("等待远程棋手落子！");
 			return;
 		}
 
-		if (chess.color != this.currentPlayer.color) {
+		if (chess.color !== this.currentPlayer.color) {
 			this.prompt("不该你走！");
 			return;
 		}
@@ -193,13 +199,13 @@ export default class Game {
 				}
 			}
 		}
+
 	}
 
 	moveTo(position) {
 		let step = this.moveChess(this.currentChess, position.x, position.y);
 		this.moveablePlaces = [];
 		this.chessUnderAttack = [];
-
 		return step;
 	}
 
@@ -212,6 +218,10 @@ export default class Game {
 		};
 
 		this.executeStep(step);
+		// socket.emit("change_state", this.situation);
+		console.info(this);
+		console.info(step);
+		console.info(this.situation);
 
 		return step;
 	}
@@ -266,16 +276,16 @@ export default class Game {
 
 		if (killedChess) {
 			//this.chesses = this.chesses.filter(it => it == killedChess);
-			
+
 			for (let i = 0; i < this.chesses.length; i++) {
-                    if (killedChess == this.chesses[i]) {
+                    if (killedChess === this.chesses[i]) {
                         this.chesses.splice(i, 1);
                         break;
                     }
-                }
+            }
 
-			if (killedChess.type == ChessType.GENERAL) {
-				let winner = (killedChess.color == Color.RED) ? "黑" : "红";
+			if (killedChess.type === ChessType.GENERAL) {
+				let winner = (killedChess.color === Color.RED) ? "黑" : "红";
 				this.prompt("结束啦，" + winner + "方胜利！");
 				this.state = GameState.FINISHED;
 			}
