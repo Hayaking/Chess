@@ -19,6 +19,7 @@
         name = localStorage.getItem("name");
     } else {
         name = prompt('用户名：');
+        localStorage.setItem("name", name);
     }
     socket.emit('sign', name);
 

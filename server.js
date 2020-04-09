@@ -19,8 +19,8 @@ app.use(function (req, res) {
 // 开启监听
 let stepList=[];
 let userPool = new Map();
-http.listen(3000, function () {
-    console.log('服务监听端口: 3000')
+http.listen(3001, function () {
+    console.log('服务监听端口: 3001')
 });
 io.on('connection', (socket) => {
     console.log('客户端连接成功:', socket.id);
